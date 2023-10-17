@@ -1,0 +1,12 @@
+Metadata-Version: 2.1
+Name: fairseq
+Version: 0.6.2
+Summary: Facebook AI Research Sequence-to-Sequence Toolkit
+Home-page: https://github.com/pytorch/fairseq
+Classifier: Intended Audience :: Science/Research
+Classifier: License :: OSI Approved :: BSD License
+Classifier: Programming Language :: Python :: 3.5
+Classifier: Programming Language :: Python :: 3.6
+Classifier: Topic :: Scientific/Engineering :: Artificial Intelligence
+
+# bert-fused-amharic

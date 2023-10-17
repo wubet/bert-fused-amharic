@@ -1,0 +1,11 @@
+torch~=1.13.1
+boto3~=1.28.40
+requests~=2.31.0
+botocore~=1.31.40
+tqdm~=4.66.1
+numpy~=1.21.6
+setuptools~=65.5.1
+lxml~=4.9.3
+sacrebleu~=2.3.1
+tokenizers~=0.14.0
+transformers~=4.34.0
