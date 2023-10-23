@@ -18,7 +18,7 @@ import torch
 from fairseq import options
 
 import preprocess
-import train
+import run_trainer
 import generate
 import interactive
 import eval_lm

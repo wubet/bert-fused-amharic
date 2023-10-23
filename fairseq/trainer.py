@@ -157,7 +157,7 @@ class Trainer(object):
             # if warmup_from_nmt:
             #     assert len(loaded_results.unexpected_keys) == 0
             #     for missing_key in loaded_results.missing_keys:
-            #         assert 'bert-fused' in missing_key, 'key {} is missing'.format(missing_key)
+            #         assert 'bert' in missing_key, 'key {} is missing'.format(missing_key)
             extra_state = state['extra_state']
             self._optim_history = state['optimizer_history']
             last_optim_state = state['last_optimizer_state']
@@ -265,6 +265,21 @@ class Trainer(object):
                     sample, self.model, self.criterion, self.optimizer,
                     ignore_grad
                 )
+
+                if not ignore_grad:
+                    # Your code to calculate accuracy
+                    model_output = logging_output[
+                        'output']  # Assuming logging_output has the model's output stored with key 'output'
+                    target = logging_output[
+                        'target']  # Assuming logging_output has the target values stored with key 'target'
+
+                    correct_predictions = (model_output == target).sum().item()
+                    total_elements = model_output.numel()  # Assuming model_output is a PyTorch tensor
+                    accuracy = correct_predictions / total_elements
+                    logging_output['acc'] = accuracy  # Store the accuracy into logging_output
+
+                    logging_outputs.append(logging_output)
+                    sample_sizes.append(sample_size)
 
                 if not ignore_grad:
                     logging_outputs.append(logging_output)

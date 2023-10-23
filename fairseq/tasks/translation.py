@@ -40,10 +40,10 @@ def load_langpair_dataset(
         # infer langcode
         if split_exists(split_k, src, tgt, src, data_path):
             prefix = os.path.join(data_path, '{}.{}-{}.'.format(split_k, src, tgt))
-            bertprefix = os.path.join(data_path, '{}.bert-fused.{}-{}.'.format(split_k, src, tgt))
+            bertprefix = os.path.join(data_path, '{}.bert.{}-{}.'.format(split_k, src, tgt))
         elif split_exists(split_k, tgt, src, src, data_path):
             prefix = os.path.join(data_path, '{}.{}-{}.'.format(split_k, tgt, src))
-            bertprefix =  os.path.join(data_path, '{}.bert-fused.{}-{}.'.format(split_k, tgt, src))
+            bertprefix =  os.path.join(data_path, '{}.bert.{}-{}.'.format(split_k, tgt, src))
         else:
             if k > 0:
                 break
@@ -131,20 +131,20 @@ class TranslationTask(FairseqTask):
                             help='max number of tokens in the target sequence')
         parser.add_argument('--upsample-primary', default=1, type=int,
                             help='amount to upsample primary dataset')
-        parser.add_argument('--bert-fused-model-name', default='bert-fused-base-uncased', type=str)
+        parser.add_argument('--bert-model-name', default='bert-base-uncased', type=str)
         parser.add_argument('--encoder-ratio', default=1., type=float)
-        parser.add_argument('--bert-fused-ratio', default=1., type=float)
-        parser.add_argument('--finetune-bert-fused', action='store_true')
+        parser.add_argument('--bert-ratio', default=1., type=float)
+        parser.add_argument('--finetune-bert', action='store_true')
         parser.add_argument('--mask-cls-sep', action='store_true')
         parser.add_argument('--warmup-from-nmt', action='store_true', )
         parser.add_argument('--warmup-nmt-file', default='checkpoint_nmt.pt', )
-        parser.add_argument('--bert-fused-gates', default=[1, 1, 1, 1, 1, 1], nargs='+', type=int)
-        parser.add_argument('--bert-fused-first', action='store_false', )
-        parser.add_argument('--encoder-bert-fused-dropout', action='store_true',)
-        parser.add_argument('--encoder-bert-fused-dropout-ratio', default=0.25, type=float)
-        parser.add_argument('--bert-fused-output-layer', default=-1, type=int)
-        parser.add_argument('--encoder-bert-fused-mixup', action='store_true')
-        parser.add_argument('--decoder-no-bert-fused', action='store_true')
+        parser.add_argument('--bert-gates', default=[1, 1, 1, 1, 1, 1], nargs='+', type=int)
+        parser.add_argument('--bert-first', action='store_false', )
+        parser.add_argument('--encoder-bert-dropout', action='store_true',)
+        parser.add_argument('--encoder-bert-dropout-ratio', default=0.25, type=float)
+        parser.add_argument('--bert-output-layer', default=-1, type=int)
+        parser.add_argument('--encoder-bert-mixup', action='store_true')
+        parser.add_argument('--decoder-no-bert', action='store_true')
 
         # fmt: on
 

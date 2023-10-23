@@ -13,7 +13,7 @@ class PreprocessFairseq:
 
         if use_bert_tokenizer:
             # Load the BERT tokenizer
-            self.en_tokenizer = BertTokenizer.from_pretrained('bert-fused-base-uncased')
+            self.en_tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
         else:
             self.en_tokenizer = Tokenizer(models.WordLevel(unk_token="[UNK]"))
             self.en_tokenizer.pre_tokenizer = pre_tokenizers.Whitespace()
@@ -45,7 +45,7 @@ class PreprocessFairseq:
         en_token_file = pre_fix + ".en.tokenized.en"
         am_token_file = pre_fix + ".am.tokenized.am"
 
-        en_dict_filename = "bert-fused-dict.en.txt" if self.use_bert_tokenizer else "dict.en.txt"
+        en_dict_filename = "bert-dict.en.txt" if self.use_bert_tokenizer else "dict.en.txt"
         am_dict_filename = "dict.am.txt"  # Assuming you want this name regardless of the tokenizer used for English
 
         if not os.path.exists(os.path.dirname(en_token_file)):
@@ -111,7 +111,7 @@ class PreprocessFairseq:
 
     def save_dictionary(self, dictionary, filename, pre_fix):
         """Save a dictionary to a file only if conditions are met"""
-        if "train.en-am" in pre_fix or 'train.bert-fused.en-am' in pre_fix:
+        if "train.en-am" in pre_fix or 'train.bert.en-am' in pre_fix:
             with open(filename, 'w', encoding='utf-8') as file:
                 dictionary.save(file)
 
@@ -121,9 +121,9 @@ if __name__ == '__main__':
     parser.add_argument('--en_file', type=str, required=True, help='Path to the English file')
     parser.add_argument('--am_file', type=str, required=True, help='Path to the Amharic file')
     parser.add_argument('--data_bin_path', type=str, required=True, help='Path to the data bin directory')
-    parser.add_argument('--task_file', type=str, required=True, choices=['train.en-am', 'train.bert-fused.en-am',
+    parser.add_argument('--task_file', type=str, required=True, choices=['train.en-am', 'train.bert.en-am',
                                                                          'test.en-am', 'valid.en-am',
-                                                                         'test.bert-fused.en-am', 'valid.bert-fused.en-am'],
+                                                                         'test.bert.en-am', 'valid.bert.en-am'],
                         help='Task file name')
     parser.add_argument('--use_bert_tokenizer', action='store_true',
                         help='Use BERT tokenizer for English data.')

@@ -10,6 +10,7 @@ Train a new model on one or across multiple GPUs.
 """
 
 import collections
+import csv
 import math
 import os
 import random
@@ -20,9 +21,41 @@ from fairseq import checkpoint_utils, distributed_utils, options, progress_bar, 
 from fairseq.data import iterators
 from fairseq.trainer import Trainer
 from fairseq.meters import AverageMeter, StopwatchMeter
+import matplotlib.pyplot as plt
+
+
+# epoch_data = []
+
+
+def save_to_csv(data, file_path):
+    with open(file_path, mode='w', newline='') as file:
+        writer = csv.writer(file)
+        writer.writerow(['Epoch', 'Loss', 'Accuracy'])  # Writing header
+        writer.writerows(data)
+
+
+def load_from_csv(file_path):
+    data = []
+    if os.path.exists(file_path):
+        with open(file_path, mode='r') as file:
+            reader = csv.reader(file)
+            next(reader)  # Skip the header
+            for row in reader:
+                epoch, loss, accuracy = int(row[0]), float(row[1]), float(row[2])
+                data.append((epoch, loss, accuracy))
+    return data
 
 
 def main(args, init_distributed=False):
+    # Ensure the output directory exists
+    output_dir = "output"
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+
+    # Load epoch_data from CSV if it exists
+    csv_path = os.path.join(output_dir, 'epoch_data.csv')  # Assuming 'output' is the directory where you save data
+    global epoch_data
+
     utils.import_user_module(args)
 
     assert args.max_tokens is not None or args.max_sentences is not None, \
@@ -73,6 +106,8 @@ def main(args, init_distributed=False):
     # Load the latest checkpoint if one is available and restore the
     # corresponding train iterator
     extra_state, epoch_itr = checkpoint_utils.load_checkpoint(args, trainer)
+    # load graph data from csv
+    epoch_data = load_from_csv(csv_path)
 
     # Train until the learning rate gets too small
     max_epoch = args.max_epoch or math.inf
@@ -100,11 +135,57 @@ def main(args, init_distributed=False):
         if epoch_itr.epoch % args.save_interval == 0:
             checkpoint_utils.save_checkpoint(args, trainer, epoch_itr, valid_losses[0])
 
+            # Save epoch_data to CSV
+            save_to_csv(epoch_data, csv_path)
+
         if ':' in getattr(args, 'data', ''):
             # sharded data: get train iterator for next epoch
             epoch_itr = trainer.get_train_iterator(epoch_itr.epoch)
     train_meter.stop()
     print('| done training in {:.1f} seconds'.format(train_meter.sum))
+
+
+def plot_graph(epoch_data, args):
+    # Ensure the output directory exists
+    output_dir = "output"
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+
+    # Extract data for plotting
+    epochs = [data[0] for data in epoch_data]
+    losses = [data[1] for data in epoch_data]
+    accuracies = [data[2] for data in epoch_data]
+
+    # Language mapping based on args
+    language_map = {"en": "English", "am": "Amharic"}
+    source_language = language_map.get(args.s, args.s)
+    target_language = language_map.get(args.t, args.t)
+
+    # Generate plot labels based on source and target languages
+    loss_label = f"{source_language} to {target_language} Bert-fused Training Loss"
+    accuracy_label = f"{source_language} to {target_language} Bert-fused Training Accuracy"
+
+    # Plot loss against epochs
+    plt.figure(figsize=(6, 5))
+    plt.plot(epochs, losses, '-o', label='loss')
+    plt.title(f'{loss_label}')
+    plt.xlabel('Epochs')
+    plt.ylabel('Loss')
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig(os.path.join(output_dir, "training_loss.png"))  # Save the loss plot
+    plt.close()  # Close the current plot
+
+    # Plot accuracy against epochs
+    plt.figure(figsize=(6, 5))
+    plt.plot(epochs, accuracies, '-o', label='accuracy')
+    plt.title(f'{accuracy_label}')
+    plt.xlabel('Epochs')
+    plt.ylabel('Accuracy')
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig(os.path.join(output_dir, "training_accuracy.png"))  # Save the accuracy plot
+    plt.close()  # Close the current plot
 
 
 def train(args, trainer, task, epoch_itr):
@@ -149,16 +230,24 @@ def train(args, trainer, task, epoch_itr):
 
         num_updates = trainer.get_num_updates()
         if (
-            not args.disable_validation
-            and args.save_interval_updates > 0
-            and num_updates % args.save_interval_updates == 0
-            and num_updates > 0
+                not args.disable_validation
+                and args.save_interval_updates > 0
+                and num_updates % args.save_interval_updates == 0
+                and num_updates > 0
         ):
             valid_losses = validate(args, trainer, task, epoch_itr, valid_subsets)
             checkpoint_utils.save_checkpoint(args, trainer, epoch_itr, valid_losses[0])
 
         if num_updates >= max_update:
             break
+
+    # At the end of the epoch, store epoch number, loss, and accuracy
+    current_epoch = epoch_itr.epoch
+    current_loss = stats.get('train_loss', None)  # assuming 'train_loss' is the key for your training loss
+    current_accuracy = stats.get('accuracy', None)  # assuming 'accuracy' is the key for your training accuracy
+
+    epoch_data.append((current_epoch, current_loss, current_accuracy))
+    plot_graph(epoch_data, args)
 
     # log end-of-epoch stats
     stats = get_training_stats(trainer)
@@ -303,7 +392,7 @@ def cli_main():
             print('| NOTE: you may get better performance with: --ddp-backend=no_c10d')
         torch.multiprocessing.spawn(
             fn=distributed_main,
-            args=(args, ),
+            args=(args,),
             nprocs=args.distributed_world_size,
         )
     else:

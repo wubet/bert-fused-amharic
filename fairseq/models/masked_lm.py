@@ -35,7 +35,7 @@ class MaskedLMModel(BaseFairseqModel):
         self.args = args
         self.encoder = encoder
 
-        # if specified then apply bert-fused initialization on the model. We need
+        # if specified then apply bert initialization on the model. We need
         # to explictly call this to make sure that the output embeddings
         # and projection layers are also correctly initialized
         if getattr(args, 'apply_bert_init', False):
@@ -88,7 +88,7 @@ class MaskedLMModel(BaseFairseqModel):
                             ' calculate sentence level predictions')
 
         # Arguments related to parameter initialization
-        parser.add_argument('--apply-bert-fused-init', action='store_true',
+        parser.add_argument('--apply-bert-init', action='store_true',
                             help='use custom param initialization for BERT')
 
         # misc params
