@@ -155,6 +155,7 @@ def plot_graph(epoch_data, args):
     epochs = [data[0] for data in epoch_data]
     losses = [data[1] for data in epoch_data]
     accuracies = [data[2] for data in epoch_data]
+    learning_rates = [data[3] for data in epoch_data]  # Extract learning rates
 
     # Language mapping based on args
     language_map = {"en": "English", "am": "Amharic"}
@@ -164,6 +165,7 @@ def plot_graph(epoch_data, args):
     # Generate plot labels based on source and target languages
     loss_label = f"{source_language} to {target_language} Bert-fused Training Loss"
     accuracy_label = f"{source_language} to {target_language} Bert-fused Training Accuracy"
+    lr_label = f"{source_language} to {target_language} Bert-fused Learning Rate Schedule"
 
     # Plot loss against epochs
     plt.figure(figsize=(6, 5))
@@ -185,6 +187,17 @@ def plot_graph(epoch_data, args):
     plt.legend()
     plt.tight_layout()
     plt.savefig(os.path.join(output_dir, "training_accuracy.png"))  # Save the accuracy plot
+    plt.close()  # Close the current plot
+
+    # Plot learning rate against epochs
+    plt.figure(figsize=(6, 5))
+    plt.plot(epochs, learning_rates, '-o', label='learning rate', color='green')
+    plt.title(f'{lr_label}')
+    plt.xlabel('Epochs')
+    plt.ylabel('Learning Rate')
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig(os.path.join(output_dir, "learning_rate.png"))  # Save the learning rate plot
     plt.close()  # Close the current plot
 
 

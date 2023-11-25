@@ -6,7 +6,7 @@ from fairseq.binarizer import Binarizer
 from transformers import BertTokenizer
 
 
-class PreprocessFairseq:
+class BilingualDataPreprocessor:
 
     def __init__(self, use_bert_tokenizer=False):
         self.use_bert_tokenizer = use_bert_tokenizer
@@ -82,7 +82,7 @@ class PreprocessFairseq:
 
             if en_dict is not None and am_dict is not None:
                 am_dataset_dest_file = os.path.join(pre_fix + ".am")
-                am_ds = indexed_dataset.make_builder(am_dataset_dest_file + ".bin", None)
+                am_ds = indexed_dataset.make_builder(am_dataset_dest_file + ".bin", "mmap")
                 am_consumer = consumer_wrapper(am_ds)
                 Binarizer.binarize(am_token_file, am_dict, am_consumer, append_eos=True, reverse_order=False)
                 am_ds.finalize(am_dataset_dest_file + ".idx")
@@ -91,7 +91,7 @@ class PreprocessFairseq:
 
         if en_dict is not None:
             en_dataset_dest_file = os.path.join(pre_fix + ".en")
-            en_ds = indexed_dataset.make_builder(en_dataset_dest_file + ".bin", None)
+            en_ds = indexed_dataset.make_builder(en_dataset_dest_file + ".bin", "mmap")
             en_consumer = consumer_wrapper(en_ds)
             Binarizer.binarize(en_token_file, en_dict, en_consumer, append_eos=True, reverse_order=False)
             en_ds.finalize(en_dataset_dest_file + ".idx")
@@ -130,7 +130,7 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    processor = PreprocessFairseq(use_bert_tokenizer=args.use_bert_tokenizer)
+    processor = BilingualDataPreprocessor(use_bert_tokenizer=args.use_bert_tokenizer)
 
     en_file_absolute = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(os.getcwd()))), args.en_file)
     am_file_absolute = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(os.getcwd()))), args.am_file)

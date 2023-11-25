@@ -23,10 +23,10 @@ PRETRAINED_VOCAB_ARCHIVE_MAP = {
     'bert-base-german-cased': "https://int-deepset-models-bert.s3.eu-central-1.amazonaws.com/pytorch/bert-base-german-cased-vocab.txt",
 }
 PRETRAINED_VOCAB_POSITIONAL_EMBEDDINGS_SIZE_MAP = {
-    'bert-base-uncased': 512,
-    'bert-large-uncased': 512,
-    'bert-base-cased': 512,
-    'bert-large-cased': 512,
+    'bert-base-uncased': 768,
+    'bert-large-uncased': 768,
+    'bert-base-cased': 768,
+    'bert-large-cased': 768,
 }
 VOCAB_NAME = 'vocab.txt'
 

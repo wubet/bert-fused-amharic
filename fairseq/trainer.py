@@ -268,22 +268,30 @@ class Trainer(object):
 
                 if not ignore_grad:
                     # Your code to calculate accuracy
-                    model_output = logging_output[
-                        'output']  # Assuming logging_output has the model's output stored with key 'output'
-                    target = logging_output[
-                        'target']  # Assuming logging_output has the target values stored with key 'target'
+                    lprobs = logging_output['lprobs']
+                    target = logging_output['target']
 
-                    correct_predictions = (model_output == target).sum().item()
-                    total_elements = model_output.numel()  # Assuming model_output is a PyTorch tensor
+                    # lprobs are log probabilities; get predicted indices
+                    # (highest probability predictions)
+                    predicted_indices = lprobs.argmax(dim=1)
+
+                    # Ensure target is in the same format as predicted_indices
+                    # Flatten target tensor to a 1D tensor if it's not already
+                    target = target.view(-1)
+
+                    # Now both tensors should have the same shape [1728] in this case
+                    correct_predictions = predicted_indices.eq(target).sum().item()
+                    total_elements = target.numel()
                     accuracy = correct_predictions / total_elements
-                    logging_output['acc'] = accuracy  # Store the accuracy into logging_output
+                    logging_output['accuracy'] = accuracy
+
+                    # Remove 'lprobs' and 'target' from logging_output
+                    logging_output.pop('lprobs', None)  # Remove 'lprobs' if it exists
+                    logging_output.pop('target', None)  # Remove 'target' if it exists
 
                     logging_outputs.append(logging_output)
                     sample_sizes.append(sample_size)
 
-                if not ignore_grad:
-                    logging_outputs.append(logging_output)
-                    sample_sizes.append(sample_size)
             except RuntimeError as e:
                 if 'out of memory' in str(e):
                     msg = (
