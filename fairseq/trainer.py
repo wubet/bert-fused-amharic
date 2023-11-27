@@ -61,6 +61,7 @@ class Trainer(object):
     def init_meters(self, args):
         self.meters = OrderedDict()
         self.meters['train_loss'] = AverageMeter()
+        self.meters['train_acc'] = AverageMeter()
         self.meters['train_nll_loss'] = AverageMeter()
         self.meters['valid_loss'] = AverageMeter()
         self.meters['valid_nll_loss'] = AverageMeter()
@@ -283,7 +284,7 @@ class Trainer(object):
                     correct_predictions = predicted_indices.eq(target).sum().item()
                     total_elements = target.numel()
                     accuracy = correct_predictions / total_elements
-                    logging_output['accuracy'] = accuracy
+                    logging_output['acc'] = accuracy
 
                     # Remove 'lprobs' and 'target' from logging_output
                     logging_output.pop('lprobs', None)  # Remove 'lprobs' if it exists

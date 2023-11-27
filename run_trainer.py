@@ -23,27 +23,7 @@ from fairseq.trainer import Trainer
 from fairseq.meters import AverageMeter, StopwatchMeter
 import matplotlib.pyplot as plt
 
-
-# epoch_data = []
-
-
-def save_to_csv(data, file_path):
-    with open(file_path, mode='w', newline='') as file:
-        writer = csv.writer(file)
-        writer.writerow(['Epoch', 'Loss', 'Accuracy'])  # Writing header
-        writer.writerows(data)
-
-
-def load_from_csv(file_path):
-    data = []
-    if os.path.exists(file_path):
-        with open(file_path, mode='r') as file:
-            reader = csv.reader(file)
-            next(reader)  # Skip the header
-            for row in reader:
-                epoch, loss, accuracy = int(row[0]), float(row[1]), float(row[2])
-                data.append((epoch, loss, accuracy))
-    return data
+from visualization import load_from_csv, save_to_csv, plot_graph
 
 
 def main(args, init_distributed=False):
@@ -119,6 +99,7 @@ def main(args, init_distributed=False):
     valid_subsets = args.valid_subset.split(',')
     if args.warmup_from_nmt:
         checkpoint_utils.save_checkpoint(args, trainer, epoch_itr, valid_losses[0], warmup_from_nmt=True)
+
     while lr > args.min_lr and epoch_itr.epoch < max_epoch and trainer.get_num_updates() < max_update:
         # train for one epoch
         train(args, trainer, task, epoch_itr)
@@ -142,68 +123,14 @@ def main(args, init_distributed=False):
             # sharded data: get train iterator for next epoch
             epoch_itr = trainer.get_train_iterator(epoch_itr.epoch)
     train_meter.stop()
+    plot_graph(epoch_data, args)
     print('| done training in {:.1f} seconds'.format(train_meter.sum))
-
-
-def plot_graph(epoch_data, args):
-    # Ensure the output directory exists
-    output_dir = "output"
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
-
-    # Extract data for plotting
-    epochs = [data[0] for data in epoch_data]
-    losses = [data[1] for data in epoch_data]
-    accuracies = [data[2] for data in epoch_data]
-    learning_rates = [data[3] for data in epoch_data]  # Extract learning rates
-
-    # Language mapping based on args
-    language_map = {"en": "English", "am": "Amharic"}
-    source_language = language_map.get(args.s, args.s)
-    target_language = language_map.get(args.t, args.t)
-
-    # Generate plot labels based on source and target languages
-    loss_label = f"{source_language} to {target_language} Bert-fused Training Loss"
-    accuracy_label = f"{source_language} to {target_language} Bert-fused Training Accuracy"
-    lr_label = f"{source_language} to {target_language} Bert-fused Learning Rate Schedule"
-
-    # Plot loss against epochs
-    plt.figure(figsize=(6, 5))
-    plt.plot(epochs, losses, '-o', label='loss')
-    plt.title(f'{loss_label}')
-    plt.xlabel('Epochs')
-    plt.ylabel('Loss')
-    plt.legend()
-    plt.tight_layout()
-    plt.savefig(os.path.join(output_dir, "training_loss.png"))  # Save the loss plot
-    plt.close()  # Close the current plot
-
-    # Plot accuracy against epochs
-    plt.figure(figsize=(6, 5))
-    plt.plot(epochs, accuracies, '-o', label='accuracy')
-    plt.title(f'{accuracy_label}')
-    plt.xlabel('Epochs')
-    plt.ylabel('Accuracy')
-    plt.legend()
-    plt.tight_layout()
-    plt.savefig(os.path.join(output_dir, "training_accuracy.png"))  # Save the accuracy plot
-    plt.close()  # Close the current plot
-
-    # Plot learning rate against epochs
-    plt.figure(figsize=(6, 5))
-    plt.plot(epochs, learning_rates, '-o', label='learning rate', color='green')
-    plt.title(f'{lr_label}')
-    plt.xlabel('Epochs')
-    plt.ylabel('Learning Rate')
-    plt.legend()
-    plt.tight_layout()
-    plt.savefig(os.path.join(output_dir, "learning_rate.png"))  # Save the learning rate plot
-    plt.close()  # Close the current plot
 
 
 def train(args, trainer, task, epoch_itr):
     """Train the model for one epoch."""
     # Update parameters every N batches
+    global stats
     update_freq = args.update_freq[epoch_itr.epoch - 1] \
         if epoch_itr.epoch <= len(args.update_freq) else args.update_freq[-1]
 
@@ -228,7 +155,7 @@ def train(args, trainer, task, epoch_itr):
         # log mid-epoch stats
         stats = get_training_stats(trainer)
         for k, v in log_output.items():
-            if k in ['loss', 'nll_loss', 'ntokens', 'nsentences', 'sample_size']:
+            if k in ['loss', 'nll_loss', 'ntokens', 'nsentences', 'sample_size', 'acc']:
                 continue  # these are already logged above
             if 'loss' in k:
                 extra_meters[k].update(v, log_output['sample_size'])
@@ -256,11 +183,12 @@ def train(args, trainer, task, epoch_itr):
 
     # At the end of the epoch, store epoch number, loss, and accuracy
     current_epoch = epoch_itr.epoch
-    current_loss = stats.get('train_loss', None)  # assuming 'train_loss' is the key for your training loss
-    current_accuracy = stats.get('accuracy', None)  # assuming 'accuracy' is the key for your training accuracy
+    current_loss = stats.get('loss', None)  # assuming 'train_loss' is the key for your training loss
+    current_accuracy = stats.get('acc', None)  # assuming 'accuracy' is the key for your training accuracy
+    current_learning_rate = stats.get('lr', None)
+    # current_learning_rate = trainer.get_lr()  #
 
-    epoch_data.append((current_epoch, current_loss, current_accuracy))
-    plot_graph(epoch_data, args)
+    epoch_data.append((current_epoch, current_loss.avg, current_accuracy.avg, current_learning_rate))
 
     # log end-of-epoch stats
     stats = get_training_stats(trainer)
@@ -299,6 +227,10 @@ def get_training_stats(trainer):
         stats['loss_scale'] = trainer.get_meter('loss_scale')
     stats['wall'] = round(trainer.get_meter('wall').elapsed_time)
     stats['train_wall'] = trainer.get_meter('train_wall')
+
+    # Include the 'acc' attribute
+    stats['acc'] = trainer.get_meter('train_acc')
+
     return stats
 
 
