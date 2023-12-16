@@ -98,9 +98,16 @@ void bleu_addngram(
 
 extern "C" {
 
-void bleu_zero_init(bleu_stat* stat) {
-  std::memset(stat, 0, sizeof(bleu_stat));
+    __declspec(dllexport) void bleu_zero_init(bleu_stat* stat) {
+      std::memset(stat, 0, sizeof(bleu_stat));
+    }
 }
+
+//extern "C" {
+//
+//void bleu_zero_init(bleu_stat* stat) {
+//  std::memset(stat, 0, sizeof(bleu_stat));
+//}
 
 void bleu_one_init(bleu_stat* stat) {
   bleu_zero_init(stat);
@@ -114,19 +121,36 @@ void bleu_one_init(bleu_stat* stat) {
   stat->match4 = 1;
 }
 
-void bleu_add(
-    bleu_stat* stat,
-    size_t reflen, int* ref, size_t predlen, int* pred, int pad, int eos) {
+//void bleu_add(
+//    bleu_stat* stat,
+//    size_t reflen, int* ref, size_t predlen, int* pred, int pad, int eos) {
+//
+//  bleu_trim(&reflen, &ref, pad, eos);
+//  bleu_trim(&predlen, &pred, pad, eos);
+//  stat->reflen += reflen;
+//  stat->predlen += predlen;
+//
+//  bleu_addngram(&stat->count1, &stat->match1, 1, reflen, ref, predlen, pred);
+//  bleu_addngram(&stat->count2, &stat->match2, 2, reflen, ref, predlen, pred);
+//  bleu_addngram(&stat->count3, &stat->match3, 3, reflen, ref, predlen, pred);
+//  bleu_addngram(&stat->count4, &stat->match4, 4, reflen, ref, predlen, pred);
+//}
+//
+//}
 
-  bleu_trim(&reflen, &ref, pad, eos);
-  bleu_trim(&predlen, &pred, pad, eos);
-  stat->reflen += reflen;
-  stat->predlen += predlen;
+extern "C" {
+    __declspec(dllexport) void bleu_add(
+        bleu_stat* stat,
+        size_t reflen, int* ref, size_t predlen, int* pred, int pad, int eos) {
 
-  bleu_addngram(&stat->count1, &stat->match1, 1, reflen, ref, predlen, pred);
-  bleu_addngram(&stat->count2, &stat->match2, 2, reflen, ref, predlen, pred);
-  bleu_addngram(&stat->count3, &stat->match3, 3, reflen, ref, predlen, pred);
-  bleu_addngram(&stat->count4, &stat->match4, 4, reflen, ref, predlen, pred);
-}
+        bleu_trim(&reflen, &ref, pad, eos);
+        bleu_trim(&predlen, &pred, pad, eos);
+        stat->reflen += reflen;
+        stat->predlen += predlen;
 
+        bleu_addngram(&stat->count1, &stat->match1, 1, reflen, ref, predlen, pred);
+        bleu_addngram(&stat->count2, &stat->match2, 2, reflen, ref, predlen, pred);
+        bleu_addngram(&stat->count3, &stat->match3, 3, reflen, ref, predlen, pred);
+        bleu_addngram(&stat->count4, &stat->match4, 4, reflen, ref, predlen, pred);
+    }
 }

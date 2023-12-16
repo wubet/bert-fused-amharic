@@ -12,6 +12,10 @@ def main(args):
     assert args.replace_unk is None or args.raw_text, \
         '--replace-unk requires a raw text dataset (--raw-text)'
 
+    # This is a placeholder function, replace with your actual method
+    def token_id_to_string(token_id):
+        return tgt_dict[token_id]  # Assuming tgt_dict is a mapping from token IDs to strings
+
     utils.import_user_module(args)
 
     if args.max_tokens is None and args.max_sentences is None:
@@ -83,7 +87,7 @@ def main(args):
         case_insensitive_scorer = bleu.SacrebleuScorer(True)  # Assumi
     else:
         case_sensitive_scorer = bleu.Scorer(tgt_dict.pad(), tgt_dict.eos(), tgt_dict.unk())
-        case_insensitive_scorer = bleu.Scorer(tgt_dict.pad(), tgt_dict.eos(), tgt_dict.unk(), True)
+        case_insensitive_scorer = bleu.Scorer(tgt_dict.pad(), tgt_dict.eos(), tgt_dict.unk())
     num_sentences = 0
     has_target = True
     with progress_bar.build_progress_bar(args, itr) as t:
@@ -125,6 +129,7 @@ def main(args):
 
                 if not args.quiet:
                     if src_dict is not None:
+                        # print('S-{}\t{}'.format(sample_id, src_str).encode('utf-8'))
                         print('S-{}\t{}'.format(sample_id, src_str))
                     if has_target:
                         print('T-{}\t{}'.format(sample_id, target_str))
@@ -166,7 +171,27 @@ def main(args):
                             case_insensitive_scorer.add_string(target_str.lower(), hypo_str.lower())
                         else:
                             case_sensitive_scorer.add(target_tokens, hypo_tokens)
-                            case_insensitive_scorer.add(target_tokens, [token.lower() for token in hypo_tokens])
+
+                            # Convert tensor of token IDs to list of strings
+                            string_tokens = [token_id_to_string(token_id.item()) for token_id in hypo_tokens]
+
+                            # Assuming tgt_dict is a dictionary mapping token IDs to strings
+                            tgt_dict_inverse = {symbol: idx for idx, symbol in enumerate(tgt_dict.symbols)}
+
+                            # Convert each string token to lowercase
+                            lowercase_tokens = [token.lower() for token in string_tokens]
+
+                            # Assuming tgt_dict.unk_index() gives the index for unknown tokens
+                            unknown_token_index = tgt_dict.unk_index
+
+                            # Convert list of strings back to list of token IDs
+                            token_ids = [tgt_dict_inverse.get(token, unknown_token_index) for token in lowercase_tokens]
+
+                            # Convert list of token IDs to PyTorch tensor
+                            lowercase_tokens_tensor = torch.tensor(token_ids, dtype=torch.int)
+
+                            # Now add to scorer
+                            case_insensitive_scorer.add(target_tokens, lowercase_tokens_tensor)
 
             wps_meter.update(num_generated_tokens)
             t.log({'wps': round(wps_meter.avg)})

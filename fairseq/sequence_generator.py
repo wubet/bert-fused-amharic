@@ -13,27 +13,28 @@ from fairseq import search, utils
 from fairseq.models import FairseqIncrementalDecoder
 import torch.nn.functional as F
 
+
 class SequenceGenerator(object):
     def __init__(
-        self,
-        tgt_dict,
-        beam_size=1,
-        max_len_a=0,
-        max_len_b=200,
-        min_len=1,
-        stop_early=True,
-        normalize_scores=True,
-        len_penalty=1.,
-        unk_penalty=0.,
-        retain_dropout=False,
-        sampling=False,
-        sampling_topk=-1,
-        temperature=1.,
-        diverse_beam_groups=-1,
-        diverse_beam_strength=0.5,
-        match_source_len=False,
-        no_repeat_ngram_size=0,
-        args=None,
+            self,
+            tgt_dict,
+            beam_size=1,
+            max_len_a=0,
+            max_len_b=200,
+            min_len=1,
+            stop_early=True,
+            normalize_scores=True,
+            len_penalty=1.,
+            unk_penalty=0.,
+            retain_dropout=False,
+            sampling=False,
+            sampling_topk=-1,
+            temperature=1.,
+            diverse_beam_groups=-1,
+            diverse_beam_strength=0.5,
+            match_source_len=False,
+            no_repeat_ngram_size=0,
+            args=None,
     ):
         """Generates translations of a given source sentence.
 
@@ -103,12 +104,12 @@ class SequenceGenerator(object):
 
     @torch.no_grad()
     def generate(
-        self,
-        models,
-        sample,
-        prefix_tokens=None,
-        bos_token=None,
-        **kwargs
+            self,
+            models,
+            sample,
+            prefix_tokens=None,
+            bos_token=None,
+            **kwargs
     ):
         """Generate a batch of translations.
 
@@ -149,12 +150,16 @@ class SequenceGenerator(object):
         # compute the encoder output for each beam
         bertinput = sample['net_input']['bert_input']
         bert_encoder_padding_mask = bertinput.eq(model.models[0].berttokenizer.pad())
-        bert_outs, _ = model.models[0].bert_encoder(bertinput, output_all_encoded_layers=True, attention_mask= 1. - bert_encoder_padding_mask)
+        # Option 2
+        attention_mask = ~bert_encoder_padding_mask
+
+        bert_outs, _ = model.models[0].bert_encoder(bertinput, output_all_encoded_layers=True,
+                                                    attention_mask=attention_mask)
         bert_outs = bert_outs[self.bert_output_layer]
         if model.models[0].mask_cls_sep:
             bert_encoder_padding_mask += bertinput.eq(model.models[0].berttokenizer.cls())
             bert_encoder_padding_mask += bertinput.eq(model.models[0].berttokenizer.sep())
-        bert_outs = bert_outs.permute(1,0,2).contiguous()
+        bert_outs = bert_outs.permute(1, 0, 2).contiguous()
         # bert_outs = F.linear(bert_outs, model.models[0].trans_weight, model.models[0].trans_bias)
         bert_outs = [{
             'bert_encoder_out': bert_outs,
@@ -239,14 +244,19 @@ class SequenceGenerator(object):
             assert bbsz_idx.numel() == eos_scores.numel()
 
             # clone relevant token and attention tensors
-            tokens_clone = tokens.index_select(0, bbsz_idx)
+            tokens_clone = tokens.index_select(0, bbsz_idx.long())  # Convert bbsz_idx to LongTensor
             tokens_clone = tokens_clone[:, 1:step + 2]  # skip the first index, which is EOS
             tokens_clone[:, step] = self.eos
-            attn_clone = attn.index_select(0, bbsz_idx)[:, :, 1:step+2] if attn is not None else None
+            attn_clone = attn.index_select(0, bbsz_idx)[:, :, 1:step + 2] if attn is not None else None
+
+            if attn is not None:
+                attn_clone = attn.index_select(0, bbsz_idx.long())[:, :,
+                             1:step + 2]  # Convert bbsz_idx to LongTensor for attn as well
 
             # compute scores per token position
-            pos_scores = scores.index_select(0, bbsz_idx)[:, :step+1]
+            pos_scores = scores.index_select(0, bbsz_idx.long())  # Convert bbsz_idx to LongTensor
             pos_scores[:, step] = eos_scores
+
             # convert from cumulative to per-position scores
             pos_scores[:, 1:] = pos_scores[:, 1:] - pos_scores[:, :-1]
 
@@ -263,8 +273,9 @@ class SequenceGenerator(object):
                     cum_unfin.append(prev)
 
             sents_seen = set()
+
             for i, (idx, score) in enumerate(zip(bbsz_idx.tolist(), eos_scores.tolist())):
-                unfin_idx = idx // beam_size
+                unfin_idx = int(idx // beam_size)  # Ensure unfin_idx is an integer
                 sent = unfin_idx + cum_unfin[unfin_idx]
 
                 sents_seen.add((sent, unfin_idx))
@@ -339,7 +350,7 @@ class SequenceGenerator(object):
                     gen_tokens = tokens[bbsz_idx].tolist()
                     for ngram in zip(*[gen_tokens[i:] for i in range(self.no_repeat_ngram_size)]):
                         gen_ngrams[bbsz_idx][tuple(ngram[:-1])] = \
-                                gen_ngrams[bbsz_idx].get(tuple(ngram[:-1]), []) + [ngram[-1]]
+                            gen_ngrams[bbsz_idx].get(tuple(ngram[:-1]), []) + [ngram[-1]]
 
             # Record attention scores
             if avg_attn_scores is not None:
@@ -373,7 +384,7 @@ class SequenceGenerator(object):
 
                 if prefix_tokens is not None and step < prefix_tokens.size(1):
                     assert isinstance(self.search, search.BeamSearch), \
-                            "currently only BeamSearch supports decoding with prefix_tokens"
+                        "currently only BeamSearch supports decoding with prefix_tokens"
                     probs_slice = lprobs.view(bsz, -1, lprobs.size(-1))[:, 0, :]
                     cand_scores = torch.gather(
                         probs_slice, dim=1,
@@ -390,7 +401,7 @@ class SequenceGenerator(object):
                 if prefix_tokens is not None and step <= prefix_tokens.size(1):
                     if step < prefix_tokens.size(1):
                         partial_prefix_mask = prefix_tokens[:, step].eq(self.pad)
-                    else:   #  all prefixes finished force-decoding
+                    else:  # all prefixes finished force-decoding
                         partial_prefix_mask = torch.ones(bsz).to(prefix_tokens).byte()
                     if partial_prefix_mask.any():
                         # track new free-decoding batches, at whose very first step
@@ -437,14 +448,22 @@ class SequenceGenerator(object):
             eos_mask = cand_indices.eq(self.eos)
 
             finalized_sents = set()
+
             if step >= self.min_len:
-                # only consider eos when it's among the top beam_size indices
+                # Ensure that eos_bbsz_idx is of the same data type as cand_bbsz_idx
+                eos_bbsz_idx = torch.zeros_like(cand_bbsz_idx[:, :beam_size])
+
+                # Perform masked select
                 torch.masked_select(
                     cand_bbsz_idx[:, :beam_size],
                     mask=eos_mask[:, :beam_size],
                     out=eos_bbsz_idx,
                 )
                 if eos_bbsz_idx.numel() > 0:
+                    # Ensure that eos_scores is of the same data type as cand_scores
+                    eos_scores = torch.zeros_like(cand_scores[:, :beam_size])
+
+                    # Perform masked select
                     torch.masked_select(
                         cand_scores[:, :beam_size],
                         mask=eos_mask[:, :beam_size],
@@ -507,6 +526,7 @@ class SequenceGenerator(object):
             )
 
             active_bbsz_idx = buffer('active_bbsz_idx')
+            active_bbsz_idx = torch.zeros_like(cand_bbsz_idx, dtype=torch.int64)
             torch.gather(
                 cand_bbsz_idx, dim=1, index=active_hypos,
                 out=active_bbsz_idx,
@@ -516,14 +536,18 @@ class SequenceGenerator(object):
                 out=scores[:, step].view(bsz, beam_size),
             )
 
-            active_bbsz_idx = active_bbsz_idx.view(-1)
-            active_scores = active_scores.view(-1)
+            # Ensure active_bbsz_idx is an integer tensor for indexing
+            active_bbsz_idx = active_bbsz_idx.long()  # Cast to int64 (long in PyTorch)
 
-            # copy tokens and scores for active hypotheses
+            # Make sure active_bbsz_idx is a 1D vector
+            active_bbsz_idx = active_bbsz_idx.view(-1)
+
+            # Now use active_bbsz_idx in torch.index_select
             torch.index_select(
                 tokens[:, :step + 1], dim=0, index=active_bbsz_idx,
                 out=tokens_buf[:, :step + 1],
             )
+
             torch.gather(
                 cand_indices, dim=1, index=active_hypos,
                 out=tokens_buf.view(bsz, beam_size, -1)[:, :, step + 1],
@@ -619,11 +643,12 @@ class EnsembleModel(torch.nn.Module):
         return avg_probs, avg_attn
 
     def _decode_one(
-        self, tokens, model, encoder_out, bert_out, incremental_states, log_probs,
-        temperature=1.,
+            self, tokens, model, encoder_out, bert_out, incremental_states, log_probs,
+            temperature=1.,
     ):
         if self.incremental_states is not None:
-            decoder_out = list(model.decoder(tokens, encoder_out, bert_out, incremental_state=self.incremental_states[model]))
+            decoder_out = list(
+                model.decoder(tokens, encoder_out, bert_out, incremental_state=self.incremental_states[model]))
         else:
             decoder_out = list(model.decoder(tokens, encoder_out, bert_out))
         decoder_out[0] = decoder_out[0][:, -1:, :]
@@ -646,7 +671,6 @@ class EnsembleModel(torch.nn.Module):
         model = self.models[0]
         encoder_outs, bert_outs = model.encoder.reorder_encoder_out(encoder_outs[0], bert_outs[0], new_order)
         return [encoder_outs], [bert_outs]
-
 
     def reorder_incremental_state(self, new_order):
         if self.incremental_states is None:
