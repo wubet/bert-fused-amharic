@@ -116,6 +116,11 @@ def main(args, init_distributed=False):
         if epoch_itr.epoch % args.save_interval == 0:
             checkpoint_utils.save_checkpoint(args, trainer, epoch_itr, valid_losses[0])
 
+            model_state_dict = model.state_dict()
+            model_save_path = os.path.join(output_dir, f'model_epoch_{epoch_itr.epoch}.pth')
+            torch.save(model_state_dict, model_save_path)
+            print(f'Model saved to {model_save_path}')
+
             # Save epoch_data to CSV
             save_to_csv(epoch_data, csv_path)
 
